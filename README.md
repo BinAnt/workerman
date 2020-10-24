@@ -1,56 +1,48 @@
-ThinkPHP 6.0
-===============
+## Workerman
 
-> 运行环境要求PHP7.1+。
+1. 主要的流程按照TP的手册上来写 https://www.kancloud.cn/manual/thinkphp6_0/1147857
 
-[官方应用服务市场](https://market.topthink.com) | [`ThinkPHP`开发者扶持计划](https://sites.thinkphp.cn/1782366)
+2. 如何主动推送 参考 http://doc3.workerman.net/315239
 
-ThinkPHPV6.0版本由[亿速云](https://www.yisu.com/)独家赞助发布。
+   ~~~php
+   require_once __DIR__ . '/Workerman/Autoloader.php';
+   use Workerman\Worker;
+   use Workerman\Lib\Timer;
+   
+   $worker = new Worker('websocket://0.0.0.0:1234');
+   // 进程启动后定时推送数据给客户端
+   $worker->onWorkerStart = function($worker){
+       Timer::add(1, function()use($worker){
+           foreach($worker->connections as $connection) {
+               $connection->send('hello');
+           }
+       });
+   };
+   Worker::runAll();
+   ~~~
 
-## 主要新特性
+   而在我的程序中正好需要一个定时任务去读取数据，再推送
 
-* 采用`PHP7`强类型（严格模式）
-* 支持更多的`PSR`规范
-* 原生多应用支持
-* 更强大和易用的查询
-* 全新的事件系统
-* 模型事件和数据库事件统一纳入事件系统
-* 模板引擎分离出核心
-* 内部功能中间件化
-* SESSION/Cookie机制改进
-* 对Swoole以及协程支持改进
-* 对IDE更加友好
-* 统一和精简大量用法
+   ~~~php
+   	public function onWorkerStart($worker) {
+           // 1. 创建定时任务
+   		Timer::add(1, function () use ($worker) {
+               // 2.读数数据库数据
+   			$lists = $this->store();
+   			foreach ($worker->connections as $connection) {
+                   // 符合条件的数据就向客户端推送
+                   if(xxx) {
+                       $connection->send($lists[0]->store_id);
+                   }
+   				
+   			}
+   		});
+   		echo "Worker starting...\n";
+   	}
+   
+   ~~~
 
-## 安装
 
-~~~
-composer create-project topthink/think tp 6.0.*
-~~~
 
-如果需要更新框架使用
-~~~
-composer update topthink/framework
-~~~
+**开始很乱，找不到方法，还想自己去封装，最后发现文档上都有。。。哎**
 
-## 文档
-
-[完全开发手册](https://www.kancloud.cn/manual/thinkphp6_0/content)
-
-## 参与开发
-
-请参阅 [ThinkPHP 核心框架包](https://github.com/top-think/framework)。
-
-## 版权信息
-
-ThinkPHP遵循Apache2开源协议发布，并提供免费使用。
-
-本项目包含的第三方源码和二进制文件之版权信息另行标注。
-
-版权所有Copyright © 2006-2020 by ThinkPHP (http://thinkphp.cn)
-
-All rights reserved。
-
-ThinkPHP® 商标和著作权所有者为上海顶想信息科技有限公司。
-
-更多细节参阅 [LICENSE.txt](LICENSE.txt)
