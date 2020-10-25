@@ -14,7 +14,7 @@ class Worker extends Server {
 	}
 
 	public function onMessage($connection, $data) {
-		$connection->send(json_encode($data) . '==' . count($this->connections));
+		$connection->send(json_encode($data) . '==' . count($this->worker->uidConnections));
 	}
 	/**
 	 * onWorkerStart 事件回调
@@ -35,7 +35,6 @@ class Worker extends Server {
 	 */
 	public function onConnect($connection) {
 		$this->worker->uidConnections['19b4aa10874b4e4ab2f2348ac7d5c9a3'] = $connection;
-		// $this->worker->connections['19b4aa10874b4e4ab2f2348ac7d5c9a3'] = $connection;
 		// array_push($this->connections, $connection->id);
 		// $connection->send('00');
 	}
@@ -49,8 +48,21 @@ class Worker extends Server {
 	 */
 	public function store() {
 		$store = new StoreTaskModel();
-		$lists = $store::where('money', '>', 0)->limit(3)->order('id', 'asc')->select();
+		$lists = $store::where('money', '>', 0)->limit(3)->order('id', 'desc')->select();
 		return $lists;
+	}
+	/**
+	 * 推送成功之后，就删除该条记录了
+	 * @param  [type] $id [description]
+	 * @return [type]     [description]
+	 */
+	public function deleteStoreTask($id) {
+		if (empty($id)) {
+			return;
+		}
+
+		$store = StoreTaskModel::find($id);
+		return $store->delete();
 	}
 	/**
 	 * 处理timer里面的业务
@@ -65,7 +77,7 @@ class Worker extends Server {
 		foreach ($lists as $item) {
 			$connection = isset($worker->uidConnections[$item->store_id]) ? $worker->uidConnections[$item->store_id] : null;
 			$str = '商户id:' . $item->store_id . '的现金：' . $this->number2chinese($item->money, true) . '到账';
-			!is_null($connection) && $connection->send($str);
+			!is_null($connection) && $connection->send($str) && $this->deleteStoreTask($item->id);
 		}
 	}
 	/**
