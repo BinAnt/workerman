@@ -2,14 +2,12 @@
 namespace app\controller;
 
 use app\BaseController;
-use app\controller\Worker;
 use EasyTask\Task;
 
 class Index extends BaseController {
 	public function index() {
-		$worker = new Worker();
-		$worker->onMessage(null, 'workerman');
-		exit;
+		// $res = $this->number2chinese(345345345, true);
+		// var_dump($res);
 		// 1. 查询一条数据
 		// $user = Account::find(1);
 

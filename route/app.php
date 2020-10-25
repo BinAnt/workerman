@@ -16,5 +16,5 @@ use think\facade\Route;
 
 // Route::post('test/:a/:b', 'StoreTask/test');
 
-// Route::post('info/:store_id/:money', 'StoreTask/info');
+Route::post('info/:store_id/:money', 'StoreTask/info');
 // Route::post('store', 'StoreTask/store');
