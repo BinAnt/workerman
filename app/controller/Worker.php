@@ -18,7 +18,6 @@ class Worker extends Server {
 			$storeId = str_replace('storeId=', '', $data);
 			$this->worker->uidConnections[$storeId] = $connection;
 		}
-		// $connection->send($data);
 	}
 	/**
 	 * onWorkerStart 事件回调
@@ -27,7 +26,7 @@ class Worker extends Server {
 	 * @return [type]         [description]
 	 */
 	public function onWorkerStart($worker) {
-		Timer::add(1, function () use ($worker) {
+		Timer::add(2, function () use ($worker) {
 			$this->dealTimer($worker);
 		});
 		echo "Worker starting...\n";
@@ -94,13 +93,13 @@ class Worker extends Server {
 		}
 		foreach ($lists as $item) {
 			$connection = isset($worker->uidConnections[$item->store_id]) ? $worker->uidConnections[$item->store_id] : null;
-			$money = $this->number2chinese($item->money, true);
+			$money = 'w' . $this->number2chinese($item->money, false);
 			if (!is_null($connection) && $connection->send($money)) {
 				// 如果发送成功，就删除该条数据
-				// $this->deleteStoreTask($item->id);
+				$this->deleteStoreTask($item->id);
 			} else {
 				// 如果没有成功就把数据插到最后面
-				// $this->insetStoreTask($item);
+				$this->insetStoreTask($item);
 			}
 		}
 	}
@@ -129,7 +128,7 @@ class Worker extends Server {
 		$integer = ltrim($integer, '0');
 
 		// 准备参数
-		$numArr = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '.' => '点'];
+		$numArr = ['', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖', '.' => '点'];
 		$descArr = ['', '十', '百', '千', '万', '十', '百', '千', '亿', '十', '百', '千', '万亿', '十', '百', '千', '兆', '十', '百', '千'];
 		if ($isRmb) {
 			$number = substr(sprintf("%.5f", $number), 0, -1);
@@ -181,7 +180,8 @@ class Worker extends Server {
 		$decimalRes = '';
 		$count = strlen($decimal);
 		if ($decimal === null) {
-			$decimalRes = $isRmb ? '整' : '';
+			// $decimalRes = $isRmb ? '整' : '';
+			$decimalRes = '';
 		} else if ($decimal === '0') {
 			$decimalRes = $isRmb ? '' : '零';
 		} else if ($count > max(array_keys($descArr))) {
@@ -214,8 +214,10 @@ class Worker extends Server {
 		$res = $symbol . (
 			$isRmb
 			? $integerRes . ($decimalRes === '' ? '元整' : "元$decimalRes")
-			: $integerRes . ($decimalRes === '' ? '' : "点$decimalRes")
+			: $integerRes . ($decimalRes === '' ? '元' : "点$decimalRes" . "元")
 		);
+		// 如果“壹十” 开头，都自己返回“+”
+		$res = $this->startsWith($res, '壹十') ? str_replace('壹十', '十', $res) : $res;
 		return $res;
 	}
 	public function startsWith($haystack, $needle) {
