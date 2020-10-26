@@ -14,7 +14,11 @@ class Worker extends Server {
 	}
 
 	public function onMessage($connection, $data) {
-		$connection->send(json_encode($data) . '==' . count($this->worker->uidConnections));
+		if ($this->startsWith($data, 'storeId=')) {
+			$storeId = str_replace('storeId=', '', $data);
+			$this->worker->uidConnections[$storeId] = $connection;
+		}
+		// $connection->send($data);
 	}
 	/**
 	 * onWorkerStart 事件回调
@@ -34,8 +38,6 @@ class Worker extends Server {
 	 * @return [type]             [description]
 	 */
 	public function onConnect($connection) {
-		$this->worker->uidConnections['19b4aa10874b4e4ab2f2348ac7d5c9a3'] = $connection;
-		// array_push($this->connections, $connection->id);
 		// $connection->send('00');
 	}
 
@@ -48,7 +50,7 @@ class Worker extends Server {
 	 */
 	public function store() {
 		$store = new StoreTaskModel();
-		$lists = $store::where('money', '>', 0)->limit(3)->order('id', 'desc')->select();
+		$lists = $store::where('money', '>', 0)->limit(10)->order('id', 'asc')->select();
 		return $lists;
 	}
 	/**
@@ -65,6 +67,22 @@ class Worker extends Server {
 		return $store->delete();
 	}
 	/**
+	 * 如果没有推送成功就把他插入到最后去
+	 * @param  [type] $store [description]
+	 * @return [type]        [description]
+	 */
+	public function insetStoreTask($store) {
+		if ($this->deleteStoreTask($store->id)) {
+			$task = new StoreTaskModel();
+			$task->store_id = $store->store_id;
+			$task->money = $store->money;
+			if ($task->save()) {
+				// 如果执行成功，干点其他事。。。
+				return json_encode(['code' => 0, 'id' => $task->id]);
+			}
+		}
+	}
+	/**
 	 * 处理timer里面的业务
 	 * @param  [type] $worker [description]
 	 * @return [type]         [description]
@@ -76,8 +94,14 @@ class Worker extends Server {
 		}
 		foreach ($lists as $item) {
 			$connection = isset($worker->uidConnections[$item->store_id]) ? $worker->uidConnections[$item->store_id] : null;
-			$str = '商户id:' . $item->store_id . '的现金：' . $this->number2chinese($item->money, true) . '到账';
-			!is_null($connection) && $connection->send($str) && $this->deleteStoreTask($item->id);
+			$money = $this->number2chinese($item->money, true);
+			if (!is_null($connection) && $connection->send($money)) {
+				// 如果发送成功，就删除该条数据
+				// $this->deleteStoreTask($item->id);
+			} else {
+				// 如果没有成功就把数据插到最后面
+				// $this->insetStoreTask($item);
+			}
 		}
 	}
 	/**
@@ -193,6 +217,10 @@ class Worker extends Server {
 			: $integerRes . ($decimalRes === '' ? '' : "点$decimalRes")
 		);
 		return $res;
+	}
+	public function startsWith($haystack, $needle) {
+		$length = strlen($needle);
+		return substr($haystack, 0, $length) === $needle;
 	}
 
 }

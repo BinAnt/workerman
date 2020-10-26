@@ -12,7 +12,9 @@ class StoreTask extends BaseController {
 	 * 2.数据插入数据表 store_task
 	 * @return [type]
 	 */
-	public function info($store_id, $money) {
+	public function info() {
+		$store_id = input('store_id');
+		$money = input('money');
 		if (!empty($store_id) && !empty($money)) {
 			$task = new StoreTaskModel();
 			$task->store_id = $store_id;
